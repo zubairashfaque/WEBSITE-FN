@@ -25,7 +25,6 @@ const BlogPostDetail = (props: BlogPostDetailProps) => {
   const [error, setError] = useState<string | null>(null);
   const [post, setPost] = useState<BlogPost | null>(null);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   useEffect(() => {
     const fetchPost = async () => {
@@ -37,16 +36,6 @@ const BlogPostDetail = (props: BlogPostDetailProps) => {
       try {
         const fetchedPost = await getBlogPostBySlug(slug);
         setPost(fetchedPost);
-        
-        // Debug info
-        if (fetchedPost) {
-          setDebugInfo({
-            contentLength: fetchedPost.content?.length || 0,
-            contentPreview: fetchedPost.content?.substring(0, 100) || '',
-            isHtml: isHtmlContent(fetchedPost.content || ''),
-            contentType: typeof fetchedPost.content
-          });
-        }
       } catch (err) {
         console.error(`Error fetching post with slug ${slug}:`, err);
         setError("Failed to load blog post. Please try again.");
@@ -77,9 +66,6 @@ const BlogPostDetail = (props: BlogPostDetailProps) => {
     // Simple check for HTML content
     return content.includes('</') && content.includes('>');
   };
-
-  console.log('Current post:', post);
-  console.log('Debug info:', debugInfo);
 
   return (
     <div className="min-h-screen bg-white">
@@ -144,32 +130,20 @@ const BlogPostDetail = (props: BlogPostDetailProps) => {
               </div>
             </div>
 
-            {/* Debug info display */}
-            {debugInfo && (
-              <div className="bg-gray-100 p-4 mb-4 rounded text-sm">
-                <h4 className="font-bold">Debug Info:</h4>
-                <p>Content Length: {debugInfo.contentLength}</p>
-                <p>Content Type: {debugInfo.contentType}</p>
-                <p>Is HTML: {debugInfo.isHtml ? 'Yes' : 'No'}</p>
-                <p>Preview: {debugInfo.contentPreview}</p>
-              </div>
-            )}
-
             <div className="prose prose-lg max-w-none mb-8">
-              {!post.content ? (
-                <p className="text-red-500">No content available for this post.</p>
-              ) : isHtmlContent(post.content) ? (
+              {/* Conditionally render content based on whether it's HTML or Markdown */}
+              {isHtmlContent(post.content) ? (
                 <div dangerouslySetInnerHTML={{ __html: post.content }} />
               ) : (
                 <div className="markdown-body">
-                  {/* Fallback for direct display */}
-                  {post.content.trim().startsWith('#') ? (
-                    <ReactMarkdown>
-                      {post.content}
-                    </ReactMarkdown>
-                  ) : (
-                    <pre className="whitespace-pre-wrap">{post.content}</pre>
-                  )}
+                  {/* Note: ReactMarkdown component should NOT receive className prop */}
+                  <ReactMarkdown components={{
+                    // This tells ReactMarkdown to put the content in a div with our className
+                    // instead of passing className directly
+                    root: ({ children }) => <div className="markdown-body">{children}</div>
+                  }}>
+                    {post.content}
+                  </ReactMarkdown>
                 </div>
               )}
             </div>
