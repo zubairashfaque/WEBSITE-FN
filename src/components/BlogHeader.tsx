@@ -38,15 +38,17 @@ const BlogHeader = () => {
     <div className="container mx-auto px-4 py-8 border-b mb-8">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold">
-          <span className="relative inline-block">
-            <span className="text-[#ff3131] font-bold">Our Blog</span>
-            <HandDrawnUnderline width={120} />
+          <span className="relative inline-block text-[#ff3131] font-bold">
+            Our Blog
+            <HandDrawnUnderline width={240} offsetX={-80} />
           </span>
         </h1>
       </div>
+      <p className="text-xl text-gray-600 max-w-3xl">
+        Insights, thoughts and perspectives on design, technology, and innovation.
+      </p>
     </div>
   );
 };
 
 export default BlogHeader;
-
