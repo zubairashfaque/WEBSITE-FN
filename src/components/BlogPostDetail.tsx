@@ -67,6 +67,48 @@ const BlogPostDetail = (props: BlogPostDetailProps) => {
     return content.includes('</') && content.includes('>');
   };
 
+  // Function to manually format markdown content as HTML
+  const formatMarkdown = (markdownText: string): string => {
+    // This is a very basic formatter for demonstration
+    // Handle headings
+    let html = markdownText
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
+      .replace(/^##### (.*$)/gim, '<h5>$1</h5>')
+      .replace(/^###### (.*$)/gim, '<h6>$1</h6>');
+      
+    // Handle bold and italic
+    html = html
+      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+      .replace(/~~(.*?)~~/gim, '<del>$1</del>');
+      
+    // Handle links
+    html = html.replace(/\[(.*?)\]\((.*?)\)/gim, '<a href="$2">$1</a>');
+      
+    // Handle code blocks
+    html = html.replace(/```([\s\S]*?)```/gim, '<pre><code>$1</code></pre>');
+      
+    // Handle inline code
+    html = html.replace(/`(.*?)`/gim, '<code>$1</code>');
+      
+    // Handle lists
+    html = html.replace(/^\s*\d+\.\s+(.*$)/gim, '<li>$1</li>').replace(/<\/li>\s*<li>/gim, '</li><li>');
+    html = html.replace(/^\s*[-*]\s+(.*$)/gim, '<li>$1</li>').replace(/<\/li>\s*<li>/gim, '</li><li>');
+      
+    // Handle paragraphs
+    html = html.replace(/^([^<].*)/gim, '<p>$1</p>');
+    html = html.replace(/<\/p>\s*<p>/gim, '</p><p>');
+      
+    // Clean up any extra paragraph tags around elements that don't need them
+    html = html.replace(/<p><(h|ul|ol|li|blockquote)/gim, '<$1');
+    html = html.replace(/<\/(h|ul|ol|li|blockquote)><\/p>/gim, '</$1>');
+      
+    return html;
+  };
+
   return (
     <div className="min-h-screen bg-white">
       <Header onContactClick={handleContactClick} />
@@ -135,16 +177,10 @@ const BlogPostDetail = (props: BlogPostDetailProps) => {
               {isHtmlContent(post.content) ? (
                 <div dangerouslySetInnerHTML={{ __html: post.content }} />
               ) : (
-                <div className="markdown-body">
-                  {/* Note: ReactMarkdown component should NOT receive className prop */}
-                  <ReactMarkdown components={{
-                    // This tells ReactMarkdown to put the content in a div with our className
-                    // instead of passing className directly
-                    root: ({ children }) => <div className="markdown-body">{children}</div>
-                  }}>
-                    {post.content}
-                  </ReactMarkdown>
-                </div>
+                <div 
+                  className="markdown-body" 
+                  dangerouslySetInnerHTML={{ __html: formatMarkdown(post.content) }}
+                />
               )}
             </div>
 
