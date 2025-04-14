@@ -72,7 +72,7 @@ const BlogPage = () => {
     <div className="min-h-screen bg-white">
       <Header onContactClick={handleContactClick} isOnBlogPage={true} />
 
-      <main className="container mx-auto px-4 py-16">
+      <main className="container mx-auto px-4 py-16 pt-32">
         <BlogHeader />
         
         {/* Search and filter section */}
