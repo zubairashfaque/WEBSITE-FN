@@ -81,4 +81,3 @@ const BlogHeader = () => {
 
 export default BlogHeader;
 
-export default BlogHeader;
