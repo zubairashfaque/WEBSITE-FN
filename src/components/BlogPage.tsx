@@ -74,21 +74,8 @@ const BlogPage = () => {
 
       <main className="container mx-auto px-4 py-16">
         <BlogHeader />
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex flex-col items-center mb-16"
-        >
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 text-center">
-            Our Blog
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl text-center">
-            Insights, thoughts and perspectives on design, technology, and
-            innovation.
-          </p>
-        </motion.div>
-
+        
+        {/* Search and filter section */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-6">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
