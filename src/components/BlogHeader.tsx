@@ -36,17 +36,17 @@ const BlogHeader = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 border-b mb-8">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
-        <h1 className="text-3xl font-bold">
+      <div className="text-center mb-12">
+        <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 relative inline-block">
           <span className="relative inline-block text-[#ff3131] font-bold">
             Our Blog
             <HandDrawnUnderline width={240} offsetX={-80} />
           </span>
-        </h1>
+        </h2>
+        <p className="text-lg text-muted-foreground max-w-3xl mx-auto mt-8">
+          Insights, thoughts and perspectives on design, technology, and innovation.
+        </p>
       </div>
-      <p className="text-xl text-gray-600 max-w-3xl">
-        Insights, thoughts and perspectives on design, technology, and innovation.
-      </p>
     </div>
   );
 };
