@@ -39,6 +39,8 @@ const BlogPage = () => {
           search: searchTerm,
           categoryId: activeCategory !== "all" ? activeCategory : undefined,
         });
+        
+        console.log("Fetched blog posts:", fetchedPosts);
         setPosts(fetchedPosts);
       } catch (error) {
         console.error("Error fetching posts:", error);
@@ -56,14 +58,23 @@ const BlogPage = () => {
 
   // Extract unique categories from posts
   const categories = [
-    "all",
-    ...new Set(posts.map((post) => post.category.slug.toLowerCase())),
+    { id: "all", name: "All", slug: "all" },
+    ...Array.from(
+      new Set(posts.map(post => post.category.id))
+    ).map(categoryId => {
+      const post = posts.find(p => p.category.id === categoryId);
+      return {
+        id: categoryId,
+        name: post?.category.name || categoryId,
+        slug: post?.category.slug || categoryId.toLowerCase()
+      };
+    })
   ];
 
   const filteredPosts = posts.filter((post) => {
     const matchesCategory =
       activeCategory === "all" ||
-      post.category.slug.toLowerCase() === activeCategory.toLowerCase();
+      post.category.id === activeCategory;
 
     return matchesCategory;
   });
@@ -97,11 +108,11 @@ const BlogPage = () => {
             <TabsList className="grid grid-cols-3 md:flex md:flex-row gap-1">
               {categories.map((category) => (
                 <TabsTrigger
-                  key={category}
-                  value={category}
+                  key={category.id}
+                  value={category.id}
                   className="capitalize"
                 >
-                  {category}
+                  {category.name}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -130,13 +141,23 @@ const BlogPage = () => {
                     />
                   </div>
                   <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <Badge
                         variant="secondary"
                         className="capitalize bg-gray-100 text-gray-800 hover:bg-gray-200"
                       >
                         {post.category.name}
                       </Badge>
+                      {/* Display all tags if available */}
+                      {post.tags && post.tags.length > 0 && post.tags.map(tag => (
+                        <Badge
+                          key={tag.id}
+                          variant="outline" 
+                          className="capitalize bg-secondary/10 text-secondary/80"
+                        >
+                          {tag.name}
+                        </Badge>
+                      ))}
                       <span className="text-xs text-gray-500">
                         {post.readTime} min read
                       </span>
