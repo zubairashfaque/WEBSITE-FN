@@ -5,6 +5,8 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Label } from "../ui/label";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Eye, Save, Search } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -17,6 +19,12 @@ import {
   getUseCaseById,
   updateUseCase,
 } from "../../api/usecases";
+import ContentInput from "./usecase/ContentInput";
+import ImageUpload from "./usecase/ImageUpload";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import "@uiw/react-md-editor/markdown-editor.css";
+import "@uiw/react-markdown-preview/markdown.css";
 
 const UseCaseForm = () => {
   const navigate = useNavigate();
@@ -29,15 +37,25 @@ const UseCaseForm = () => {
     title: "",
     description: "",
     content: "",
-    industry: "",
-    category: "",
+    industries: [] as string[],
+    categories: [] as string[],
     imageUrl: "",
     status: "draft",
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [contentInputMethod, setContentInputMethod] = useState<
+    "editor" | "upload"
+  >("editor");
+  const [markdownFile, setMarkdownFile] = useState<File | null>(null);
+  const [isEditingUploadedContent, setIsEditingUploadedContent] =
+    useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(isEditMode);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [searchValue, setSearchValue] = useState(searchQuery);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Fetch use case data if in edit mode
   useEffect(() => {
@@ -57,8 +75,8 @@ const UseCaseForm = () => {
           title: useCase.title,
           description: useCase.description,
           content: useCase.content,
-          industry: useCase.industry,
-          category: useCase.category,
+          industries: useCase.industries || [],
+          categories: useCase.categories || [],
           imageUrl: useCase.imageUrl,
           status: useCase.status,
         });
@@ -105,6 +123,54 @@ const UseCaseForm = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageFile(file);
+
+    // Create a preview URL for the image
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      setImagePreview(result);
+      setFormData((prev) => ({ ...prev, imageUrl: result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleMarkdownFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setMarkdownFile(file);
+
+    // Read the markdown file content
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      // Normalize line endings to ensure consistent handling across platforms
+      // Convert all types of line endings (CRLF, CR) to LF
+      const normalizedContent = result
+        .replace(/\r\n/g, "\n") // CRLF → LF
+        .replace(/\r/g, "\n"); // CR → LF
+      setFormData((prev) => ({ ...prev, content: normalizedContent }));
+      // Reset editing state when a new file is uploaded
+      setIsEditingUploadedContent(false);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleContentInputMethodChange = (value: "editor" | "upload") => {
+    setContentInputMethod(value);
+    // Reset editing state when switching input methods
+    setIsEditingUploadedContent(false);
+  };
+
+  const handleContentChange = (value?: string) => {
+    setFormData((prev) => ({ ...prev, content: value || "" }));
+  };
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchValue(value);
@@ -119,12 +185,12 @@ const UseCaseForm = () => {
     setSearchParams(newSearchParams);
   };
 
-  const handleIndustryChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, industry: value }));
+  const handleIndustryChange = (value: string[]) => {
+    setFormData((prev) => ({ ...prev, industries: value }));
   };
 
-  const handleCategoryChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, category: value }));
+  const handleCategoryChange = (value: string[]) => {
+    setFormData((prev) => ({ ...prev, categories: value }));
   };
 
   const handleStatusChange = (value: string) => {
@@ -135,6 +201,7 @@ const UseCaseForm = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    setSuccess(null);
 
     try {
       // Basic validation
@@ -142,20 +209,105 @@ const UseCaseForm = () => {
       if (!formData.description.trim())
         throw new Error("Description is required");
       if (!formData.content.trim()) throw new Error("Content is required");
-      if (!formData.industry) throw new Error("Please select an industry");
-      if (!formData.category) throw new Error("Please select a category");
+      if (!formData.industries || formData.industries.length === 0)
+        throw new Error("Please select at least one industry");
+      if (!formData.categories || formData.categories.length === 0)
+        throw new Error("Please select at least one category");
+
+      // Prepare the content based on the input method
+      let finalContent = formData.content;
+
+      // If using uploaded content and not in editing mode, use the original uploaded content
+      if (
+        contentInputMethod === "upload" &&
+        markdownFile &&
+        !isEditingUploadedContent
+      ) {
+        // Re-read the file to ensure we have the latest content
+        const reader = new FileReader();
+        const fileContent = await new Promise<string>((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsText(markdownFile);
+        });
+        // Normalize line endings to ensure consistent handling across platforms
+        // Convert all types of line endings (CRLF, CR) to LF
+        finalContent = fileContent
+          .replace(/\r\n/g, "\n") // CRLF → LF
+          .replace(/\r/g, "\n"); // CR → LF
+      }
+
+      // Process image if it's a base64 string that's too large
+      let finalImageUrl = formData.imageUrl;
+      if (
+        finalImageUrl.startsWith("data:image") &&
+        finalImageUrl.length > 1000000
+      ) {
+        // Compress the image
+        try {
+          console.log("Compressing large image...");
+          const img = new Image();
+          img.src = finalImageUrl;
+
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+          });
+
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+
+          // Resize to smaller dimensions
+          const maxWidth = 800;
+          const maxHeight = 600;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height *= maxWidth / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width *= maxHeight / height;
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          // Get compressed image
+          finalImageUrl = canvas.toDataURL("image/jpeg", 0.6);
+          console.log("Image compressed successfully");
+        } catch (compressionError) {
+          console.error("Error compressing image:", compressionError);
+          // Continue with the original image if compression fails
+        }
+      }
+
+      // Create the final form data with the prepared content and image
+      const finalFormData = {
+        ...formData,
+        content: finalContent,
+        imageUrl: finalImageUrl,
+      };
 
       if (isEditMode && id) {
         // Update existing use case
-        await updateUseCase(id, formData);
-        alert("Use case updated successfully!");
+        await updateUseCase(id, finalFormData);
+        setSuccess("Use case updated successfully!");
       } else {
         // Create new use case
-        await createUseCase(formData);
-        alert("Use case created successfully!");
+        await createUseCase(finalFormData);
+        setSuccess("Use case created successfully!");
       }
 
-      navigate("/admin/usecases");
+      // Don't navigate away immediately so user can see success message
+      setTimeout(() => {
+        navigate("/admin/usecases");
+      }, 2000);
     } catch (error) {
       setError(
         error instanceof Error
@@ -185,9 +337,19 @@ const UseCaseForm = () => {
       </h1>
 
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-600">
-          {error}
-        </div>
+        <Alert variant="destructive" className="mb-6">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {success && (
+        <Alert className="mb-6 bg-green-50 border-green-200">
+          <AlertTitle className="text-green-700">Success</AlertTitle>
+          <AlertDescription className="text-green-600">
+            {success}
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Search Bar */}
@@ -244,55 +406,98 @@ const UseCaseForm = () => {
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="content">Full Content</Label>
-          <Textarea
-            id="content"
-            name="content"
-            value={formData.content}
-            onChange={handleInputChange}
-            placeholder="Write the full use case content here..."
-            rows={10}
-          />
-        </div>
+        <ContentInput
+          contentInputMethod={contentInputMethod}
+          onContentInputMethodChange={handleContentInputMethodChange}
+          content={formData.content}
+          onContentChange={handleContentChange}
+          markdownFile={markdownFile}
+          onMarkdownFileChange={handleMarkdownFileChange}
+          isEditingUploadedContent={isEditingUploadedContent}
+          setIsEditingUploadedContent={setIsEditingUploadedContent}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label htmlFor="industry">Industry</Label>
-            <Select
-              value={formData.industry}
-              onValueChange={handleIndustryChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select industry" />
-              </SelectTrigger>
-              <SelectContent>
-                {industries.map((industry) => (
-                  <SelectItem key={industry.id} value={industry.name}>
+            <Label htmlFor="industries">Industries (Select multiple)</Label>
+            <div className="border rounded-md p-3 space-y-2">
+              {industries.map((industry) => (
+                <div key={industry.id} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`industry-${industry.id}`}
+                    checked={formData.industries.includes(industry.name)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        handleIndustryChange([
+                          ...formData.industries,
+                          industry.name,
+                        ]);
+                      } else {
+                        handleIndustryChange(
+                          formData.industries.filter(
+                            (i) => i !== industry.name,
+                          ),
+                        );
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label
+                    htmlFor={`industry-${industry.id}`}
+                    className="text-sm"
+                  >
                     {industry.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </label>
+                </div>
+              ))}
+            </div>
+            {formData.industries.length > 0 && (
+              <div className="text-sm text-gray-500">
+                Selected: {formData.industries.join(", ")}
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select
-              value={formData.category}
-              onValueChange={handleCategoryChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.name}>
+            <Label htmlFor="categories">Categories (Select multiple)</Label>
+            <div className="border rounded-md p-3 space-y-2">
+              {categories.map((category) => (
+                <div key={category.id} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`category-${category.id}`}
+                    checked={formData.categories.includes(category.name)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        handleCategoryChange([
+                          ...formData.categories,
+                          category.name,
+                        ]);
+                      } else {
+                        handleCategoryChange(
+                          formData.categories.filter(
+                            (c) => c !== category.name,
+                          ),
+                        );
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <label
+                    htmlFor={`category-${category.id}`}
+                    className="text-sm"
+                  >
                     {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </label>
+                </div>
+              ))}
+            </div>
+            {formData.categories.length > 0 && (
+              <div className="text-sm text-gray-500">
+                Selected: {formData.categories.join(", ")}
+              </div>
+            )}
           </div>
         </div>
 
@@ -309,139 +514,69 @@ const UseCaseForm = () => {
           </Select>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="imageUrl">Featured Image</Label>
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-2">
-              <Input
-                id="imageUrl"
-                name="imageUrl"
-                value={formData.imageUrl}
-                onChange={handleInputChange}
-                placeholder="Enter image URL"
-                className="flex-1"
-              />
-              <div className="relative">
-                <Input
-                  type="file"
-                  id="imageUpload"
-                  accept="image/*"
-                  className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      // Convert to base64 for local storage
-                      const reader = new FileReader();
-                      reader.onloadend = () => {
-                        const result = reader.result as string;
-                        // Check if image is too large
-                        if (result.length > 1000000) {
-                          // Use a smaller version
-                          const img = new Image();
-                          img.onload = function () {
-                            const canvas = document.createElement("canvas");
-                            const ctx = canvas.getContext("2d");
-                            // Resize to smaller dimensions
-                            const maxWidth = 800;
-                            const maxHeight = 600;
-                            let width = img.width;
-                            let height = img.height;
+        <ImageUpload
+          imageUrl={formData.imageUrl}
+          imagePreview={imagePreview}
+          onInputChange={handleInputChange}
+          onFileChange={handleImageFileChange}
+        />
 
-                            if (width > height) {
-                              if (width > maxWidth) {
-                                height *= maxWidth / width;
-                                width = maxWidth;
-                              }
-                            } else {
-                              if (height > maxHeight) {
-                                width *= maxHeight / height;
-                                height = maxHeight;
-                              }
-                            }
-
-                            canvas.width = width;
-                            canvas.height = height;
-                            ctx?.drawImage(img, 0, 0, width, height);
-
-                            // Get compressed image
-                            const compressedImage = canvas.toDataURL(
-                              "image/jpeg",
-                              0.7,
-                            );
-                            setFormData((prev) => ({
-                              ...prev,
-                              imageUrl: compressedImage,
-                            }));
-                          };
-                          img.src = result;
-                        } else {
-                          setFormData((prev) => ({
-                            ...prev,
-                            imageUrl: result,
-                          }));
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="relative z-0 flex items-center gap-1"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="lucide lucide-image"
-                  >
-                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
-                    <circle cx="9" cy="9" r="2" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
-                  </svg>
-                  Upload
-                </Button>
-              </div>
+        {showPreview && (
+          <div className="mb-6 border rounded-md p-4 bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium">Markdown Preview</h3>
+              {contentInputMethod === "upload" && markdownFile && (
+                <div className="text-sm text-gray-500">
+                  Previewing {isEditingUploadedContent ? "edited" : "uploaded"}{" "}
+                  content from: {markdownFile.name}
+                </div>
+              )}
             </div>
-            <p className="text-xs text-gray-500">
-              Enter a URL or upload an image file (max 2MB)
-            </p>
+            <div className="prose max-w-none overflow-auto p-4 border rounded-md bg-gray-50">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {formData.content}
+              </ReactMarkdown>
+            </div>
           </div>
-          {formData.imageUrl && (
-            <div className="mt-2 border rounded-md overflow-hidden h-40">
-              <img
-                src={formData.imageUrl}
-                alt="Featured"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
-        </div>
+        )}
 
-        <div className="flex justify-end gap-4">
+        <div className="flex justify-between items-center">
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate("/admin/usecases")}
+            onClick={() => setShowPreview(!showPreview)}
+            className="flex items-center gap-2"
           >
-            Cancel
+            <Eye className="h-4 w-4" />{" "}
+            {showPreview ? "Hide Preview" : "Show Preview"}
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting
-              ? isEditMode
-                ? "Updating..."
-                : "Saving..."
-              : isEditMode
-                ? "Update Use Case"
-                : "Save Use Case"}
-          </Button>
+
+          <div className="space-x-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/admin/usecases")}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  {isEditMode ? "Updating..." : "Saving..."}
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  {isEditMode ? "Update Use Case" : "Save Use Case"}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </form>
     </div>

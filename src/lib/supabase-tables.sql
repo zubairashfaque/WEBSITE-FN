@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS usecases (
   content TEXT NOT NULL,
   industry TEXT NOT NULL,
   category TEXT NOT NULL,
+  industries_array TEXT[] DEFAULT '{}',
+  categories_array TEXT[] DEFAULT '{}',
   image_url TEXT,
   status TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -180,13 +182,15 @@ BEGIN
   (post2_id, tag3_id);
   
   -- Sample use cases
-  INSERT INTO usecases (title, description, content, industry, category, image_url, status)
+  INSERT INTO usecases (title, description, content, industry, category, industries_array, categories_array, image_url, status)
   VALUES
   ('AI-Powered Customer Support', 
    'Automating customer service with intelligent chatbots', 
    'This use case demonstrates how our AI solution helped a major retail company automate 70% of their customer support inquiries using advanced natural language processing and machine learning algorithms.',
    'Retail',
    'Customer Service',
+   ARRAY['Retail', 'E-commerce'],
+   ARRAY['Customer Service', 'AI Solutions'],
    'https://images.unsplash.com/photo-1573164574572-cb89e39749b4?w=800&q=80',
    'published'),
    
@@ -195,6 +199,8 @@ BEGIN
    'Our solution helped a banking institution automate the processing of thousands of financial documents daily, reducing processing time by 85% and improving accuracy to 99.2%.',
    'Banking',
    'Process Automation',
+   ARRAY['Banking', 'Finance'],
+   ARRAY['Process Automation', 'Data Analytics'],
    'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&q=80',
    'published'),
    
@@ -203,6 +209,8 @@ BEGIN
    'This case study explores how our platform helped a healthcare provider improve patient outcomes by 32% through intelligent care pathway automation and predictive analytics.',
    'Healthcare',
    'Workflow Optimization',
+   ARRAY['Healthcare', 'Medical'],
+   ARRAY['Workflow Optimization', 'Process Automation'],
    'https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=800&q=80',
    'draft');
    

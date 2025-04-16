@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Calendar, User, Tag } from "lucide-react";
 import { getUseCaseById } from "../api/usecases";
 import Header from "./header";
 import Footer from "./footer";
 import ContactModal from "./ContactModal";
+import ReactMarkdown from "react-markdown";
+import "../styles/markdown.css";
 
 interface UseCase {
   id: string;
@@ -14,6 +16,8 @@ interface UseCase {
   content: string;
   industry: string;
   category: string;
+  industries?: string[];
+  categories?: string[];
   imageUrl: string;
   status: "draft" | "published";
   createdAt: string;
@@ -56,6 +60,59 @@ const UseCaseDetail = () => {
 
   const handleContactClick = () => {
     setIsContactModalOpen(true);
+  };
+
+  // Helper function to determine if content is mostly HTML
+  const isHtmlContent = (content: string): boolean => {
+    if (!content) return false;
+    // Simple check for HTML content
+    return content.includes("</") && content.includes(">");
+  };
+
+  // Function to manually format markdown content as HTML
+  const formatMarkdown = (markdownText: string): string => {
+    // This is a very basic formatter for demonstration
+    // Handle headings
+    let html = markdownText
+      .replace(/^# (.*$)/gim, "<h1>$1</h1>")
+      .replace(/^## (.*$)/gim, "<h2>$1</h2>")
+      .replace(/^### (.*$)/gim, "<h3>$1</h3>")
+      .replace(/^#### (.*$)/gim, "<h4>$1</h4>")
+      .replace(/^##### (.*$)/gim, "<h5>$1</h5>")
+      .replace(/^###### (.*$)/gim, "<h6>$1</h6>");
+
+    // Handle bold and italic
+    html = html
+      .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/gim, "<em>$1</em>")
+      .replace(/~~(.*?)~~/gim, "<del>$1</del>");
+
+    // Handle links
+    html = html.replace(/\[(.*?)\]\((.*?)\)/gim, '<a href="$2">$1</a>');
+
+    // Handle code blocks
+    html = html.replace(/```([\s\S]*?)```/gim, "<pre><code>$1</code></pre>");
+
+    // Handle inline code
+    html = html.replace(/`(.*?)`/gim, "<code>$1</code>");
+
+    // Handle lists
+    html = html
+      .replace(/^\s*\d+\.\s+(.*$)/gim, "<li>$1</li>")
+      .replace(/<\/li>\s*<li>/gim, "</li><li>");
+    html = html
+      .replace(/^\s*[-*]\s+(.*$)/gim, "<li>$1</li>")
+      .replace(/<\/li>\s*<li>/gim, "</li><li>");
+
+    // Handle paragraphs
+    html = html.replace(/^([^<].*)/gim, "<p>$1</p>");
+    html = html.replace(/<\/p>\s*<p>/gim, "</p><p>");
+
+    // Clean up any extra paragraph tags around elements that don't need them
+    html = html.replace(/<p><(h|ul|ol|li|blockquote)/gim, "<$1");
+    html = html.replace(/<\/(h|ul|ol|li|blockquote)><\/p>/gim, "</$1>");
+
+    return html;
   };
 
   if (isLoading) {
@@ -105,13 +162,36 @@ const UseCaseDetail = () => {
 
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
-            <div className="flex gap-2 mb-4">
-              <span className="inline-block px-3 py-1 text-sm bg-primary/10 text-primary rounded-full">
-                {useCase.industry}
-              </span>
-              <span className="inline-block px-3 py-1 text-sm bg-secondary/10 text-secondary rounded-full">
-                {useCase.category}
-              </span>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {useCase.industries && useCase.industries.length > 0 ? (
+                useCase.industries.map((industry, index) => (
+                  <span
+                    key={index}
+                    className="inline-block px-3 py-1 text-sm bg-primary/10 text-primary rounded-full"
+                  >
+                    {industry}
+                  </span>
+                ))
+              ) : (
+                <span className="inline-block px-3 py-1 text-sm bg-primary/10 text-primary rounded-full">
+                  {useCase.industry}
+                </span>
+              )}
+
+              {useCase.categories && useCase.categories.length > 0 ? (
+                useCase.categories.map((category, index) => (
+                  <span
+                    key={index}
+                    className="inline-block px-3 py-1 text-sm bg-secondary/10 text-secondary rounded-full"
+                  >
+                    {category}
+                  </span>
+                ))
+              ) : (
+                <span className="inline-block px-3 py-1 text-sm bg-secondary/10 text-secondary rounded-full">
+                  {useCase.category}
+                </span>
+              )}
             </div>
 
             <h1 className="text-4xl md:text-5xl font-bold mb-6">
@@ -131,10 +211,17 @@ const UseCaseDetail = () => {
             </div>
           )}
 
-          <div className="prose prose-lg max-w-none">
-            {useCase.content.split("\n").map((paragraph, index) => (
-              <p key={index}>{paragraph}</p>
-            ))}
+          <div className="prose prose-lg max-w-none mb-8">
+            {isHtmlContent(useCase.content) ? (
+              <div dangerouslySetInnerHTML={{ __html: useCase.content }} />
+            ) : (
+              <div
+                className="markdown-body"
+                dangerouslySetInnerHTML={{
+                  __html: formatMarkdown(useCase.content),
+                }}
+              />
+            )}
           </div>
 
           <div className="mt-16 p-8 bg-gray-50 rounded-xl">

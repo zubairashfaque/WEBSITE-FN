@@ -56,9 +56,9 @@ const SupabaseMigration = () => {
 
   const getTotalMigratedItems = () => {
     if (!migrationStatus) return 0;
-    const { blogPosts, categories, tags, contactSubmissions } =
+    const { blogPosts, categories, tags, contactSubmissions, useCases } =
       migrationStatus.stats;
-    return blogPosts + categories + tags + contactSubmissions;
+    return blogPosts + categories + tags + contactSubmissions + (useCases || 0);
   };
 
   if (!canMigrate) {
@@ -168,6 +168,14 @@ const SupabaseMigration = () => {
                   {migrationStatus.stats.contactSubmissions} migrated
                 </p>
               </div>
+              {migrationStatus.stats.useCases !== undefined && (
+                <div className="space-y-1">
+                  <p className="font-medium">Use Cases</p>
+                  <p className="text-gray-500">
+                    {migrationStatus.stats.useCases} migrated
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : null}
@@ -176,8 +184,8 @@ const SupabaseMigration = () => {
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
               You have data stored in localStorage that can be migrated to your
-              Supabase database. This includes blog posts, categories, tags, and
-              contact form submissions.
+              Supabase database. This includes blog posts, categories, tags, use
+              cases, and contact form submissions.
             </p>
 
             <div className="rounded-md border p-4 bg-gray-50">
@@ -189,6 +197,10 @@ const SupabaseMigration = () => {
                 <li className="flex items-center gap-2">
                   <ArrowRight className="h-3 w-3" /> Blog posts and their
                   relationships
+                </li>
+                <li className="flex items-center gap-2">
+                  <ArrowRight className="h-3 w-3" /> Use cases with industries
+                  and categories
                 </li>
                 <li className="flex items-center gap-2">
                   <ArrowRight className="h-3 w-3" /> Contact form submissions
