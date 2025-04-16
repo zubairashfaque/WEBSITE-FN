@@ -231,9 +231,7 @@ const BlogPage = () => {
             variant="outline"
             className="gap-2 border-gray-300 hover:bg-gray-50"
             onClick={() => {
-              // In a real implementation, this would load more articles
               console.log("Loading more articles...");
-              // For now, just scroll to top as a placeholder action
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           >
