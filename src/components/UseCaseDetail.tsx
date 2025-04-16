@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
-import { ArrowLeft, Calendar, User, Clock, Tag } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { getUseCaseById } from "../api/usecases";
 import Header from "./header";
 import Footer from "./footer";
 import ContactModal from "./ContactModal";
-// Import React Markdown with only essential plugins
-import ReactMarkdown from "react-markdown";
-// Import markdown styles
 import "../styles/markdown.css";
 
 interface UseCase {
@@ -47,9 +44,8 @@ const UseCaseDetail = () => {
 
       try {
         const data = await getUseCaseById(id);
-        if (data) {
-          setUseCase(data);
-        } else {
+        setUseCase(data || null);
+        if (!data) {
           setError("Use case not found");
         }
       } catch (err) {
@@ -67,57 +63,10 @@ const UseCaseDetail = () => {
     setIsContactModalOpen(true);
   };
 
-  // Helper function to determine if content is mostly HTML
+  // Simplified check for HTML content
   const isHtmlContent = (content: string): boolean => {
     if (!content) return false;
-    // Simple check for HTML content
     return content.includes("</") && content.includes(">");
-  };
-
-  // Function to manually format markdown content as HTML
-  const formatMarkdown = (markdownText: string): string => {
-    // This is a very basic formatter for demonstration
-    // Handle headings
-    let html = markdownText
-      .replace(/^# (.*$)/gim, "<h1>$1</h1>")
-      .replace(/^## (.*$)/gim, "<h2>$1</h2>")
-      .replace(/^### (.*$)/gim, "<h3>$1</h3>")
-      .replace(/^#### (.*$)/gim, "<h4>$1</h4>")
-      .replace(/^##### (.*$)/gim, "<h5>$1</h5>")
-      .replace(/^###### (.*$)/gim, "<h6>$1</h6>");
-
-    // Handle bold and italic
-    html = html
-      .replace(/\*\*(.*?)\*\*/gim, "<strong>$1</strong>")
-      .replace(/\*(.*?)\*/gim, "<em>$1</em>")
-      .replace(/~~(.*?)~~/gim, "<del>$1</del>");
-
-    // Handle links
-    html = html.replace(/\[(.*?)\]\((.*?)\)/gim, '<a href="$2">$1</a>');
-
-    // Handle code blocks
-    html = html.replace(/```([\s\S]*?)```/gim, "<pre><code>$1</code></pre>");
-
-    // Handle inline code
-    html = html.replace(/`(.*?)`/gim, "<code>$1</code>");
-
-    // Handle lists
-    html = html
-      .replace(/^\s*\d+\.\s+(.*$)/gim, "<li>$1</li>")
-      .replace(/<\/li>\s*<li>/gim, "</li><li>");
-    html = html
-      .replace(/^\s*[-*]\s+(.*$)/gim, "<li>$1</li>")
-      .replace(/<\/li>\s*<li>/gim, "</li><li>");
-
-    // Handle paragraphs
-    html = html.replace(/^([^<].*)/gim, "<p>$1</p>");
-    html = html.replace(/<\/p>\s*<p>/gim, "</p><p>");
-
-    // Clean up any extra paragraph tags around elements that don't need them
-    html = html.replace(/<p><(h|ul|ol|li|blockquote)/gim, "<$1");
-    html = html.replace(/<\/(h|ul|ol|li|blockquote)><\/p>/gim, "</$1>");
-
-    return html;
   };
 
   return (
@@ -151,35 +100,37 @@ const UseCaseDetail = () => {
           <article className="max-w-4xl mx-auto">
             <div className="mb-8">
               <div className="flex flex-wrap gap-2 mb-4">
-                {useCase.industries && useCase.industries.length > 0 ? (
+                {/* Handle industries - support both array and string formats */}
+                {useCase.industries && Array.isArray(useCase.industries) && useCase.industries.length > 0 ? (
                   useCase.industries.map((industry, index) => (
                     <span
-                      key={index}
+                      key={`industry-${index}`}
                       className="inline-block px-3 py-1 text-sm bg-primary/10 text-primary rounded-full"
                     >
                       {industry}
                     </span>
                   ))
-                ) : (
+                ) : typeof useCase.industry === 'string' ? (
                   <span className="inline-block px-3 py-1 text-sm bg-primary/10 text-primary rounded-full">
                     {useCase.industry}
                   </span>
-                )}
+                ) : null}
 
-                {useCase.categories && useCase.categories.length > 0 ? (
+                {/* Handle categories - support both array and string formats */}
+                {useCase.categories && Array.isArray(useCase.categories) && useCase.categories.length > 0 ? (
                   useCase.categories.map((category, index) => (
                     <span
-                      key={index}
+                      key={`category-${index}`}
                       className="inline-block px-3 py-1 text-sm bg-secondary/10 text-secondary rounded-full"
                     >
                       {category}
                     </span>
                   ))
-                ) : (
+                ) : typeof useCase.category === 'string' ? (
                   <span className="inline-block px-3 py-1 text-sm bg-secondary/10 text-secondary rounded-full">
                     {useCase.category}
                   </span>
-                )}
+                ) : null}
               </div>
 
               <h1 className="text-4xl md:text-5xl font-bold mb-6">
@@ -200,15 +151,16 @@ const UseCaseDetail = () => {
             )}
 
             <div className="prose prose-lg max-w-none mb-8">
-              {isHtmlContent(useCase.content) ? (
-                <div dangerouslySetInnerHTML={{ __html: useCase.content }} />
+              {useCase.content ? (
+                isHtmlContent(useCase.content) ? (
+                  <div dangerouslySetInnerHTML={{ __html: useCase.content }} />
+                ) : (
+                  <div className="markdown-body">
+                    <ReactMarkdown>{useCase.content}</ReactMarkdown>
+                  </div>
+                )
               ) : (
-                <div
-                  className="markdown-body"
-                  dangerouslySetInnerHTML={{
-                    __html: formatMarkdown(useCase.content),
-                  }}
-                />
+                <p>No content available</p>
               )}
             </div>
 
