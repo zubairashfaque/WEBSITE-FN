@@ -153,7 +153,7 @@ const BlogPage = () => {
                         <Badge
                           key={tag.id}
                           variant="outline" 
-                          className="capitalize bg-secondary/10 text-secondary/80"
+                          className="capitalize bg-blue-100 text-blue-800 hover:bg-blue-200"
                         >
                           {tag.name}
                         </Badge>
