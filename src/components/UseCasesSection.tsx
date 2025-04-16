@@ -52,7 +52,9 @@ interface UseCase {
   description: string;
   image: string;
   industry: string;
+  industries?: string[];
   solutionType: string;
+  categories?: string[];
   link: string;
 }
 
@@ -83,7 +85,11 @@ const UseCasesSection = () => {
           description: useCase.description,
           image: useCase.imageUrl,
           industry: useCase.industry,
+          // Store all industries for display
+          industries: useCase.industries || [useCase.industry],
           solutionType: useCase.category,
+          // Store all categories for display
+          categories: useCase.categories || [useCase.category],
           link: `/use-cases/${useCase.id}`,
         }));
 
@@ -102,10 +108,10 @@ const UseCasesSection = () => {
 
   // All unique industries and solution types for filtering
   const industries = Array.from(
-    new Set(defaultUseCases.map((useCase) => useCase.industry)),
+    new Set(defaultUseCases.flatMap((useCase) => useCase.industries || [useCase.industry])),
   );
   const solutionTypes = Array.from(
-    new Set(defaultUseCases.map((useCase) => useCase.solutionType)),
+    new Set(defaultUseCases.flatMap((useCase) => useCase.categories || [useCase.solutionType])),
   );
 
   // Filter use cases based on search term and active tab
@@ -120,18 +126,24 @@ const UseCasesSection = () => {
           useCase.description
             .toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
-          useCase.industry.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          useCase.solutionType.toLowerCase().includes(searchTerm.toLowerCase()),
+          (useCase.industries || [useCase.industry]).some(industry => 
+            industry.toLowerCase().includes(searchTerm.toLowerCase())
+          ) ||
+          (useCase.categories || [useCase.solutionType]).some(category => 
+            category.toLowerCase().includes(searchTerm.toLowerCase())
+          ),
       );
     }
 
     // Filter by tab
     if (activeTab !== "all") {
       if (industries.includes(activeTab)) {
-        filtered = filtered.filter((useCase) => useCase.industry === activeTab);
+        filtered = filtered.filter((useCase) => 
+          (useCase.industries || [useCase.industry]).includes(activeTab)
+        );
       } else if (solutionTypes.includes(activeTab)) {
-        filtered = filtered.filter(
-          (useCase) => useCase.solutionType === activeTab,
+        filtered = filtered.filter((useCase) => 
+          (useCase.categories || [useCase.solutionType]).includes(activeTab)
         );
       }
     }
@@ -284,19 +296,25 @@ const UseCasesSection = () => {
                           />
                         </div>
                         <CardHeader>
-                          <div className="flex gap-2 mb-2">
-                            <Badge
-                              variant="secondary"
-                              className="bg-primary/10 text-primary hover:bg-primary/20"
-                            >
-                              {useCase.industry}
-                            </Badge>
-                            <Badge
-                              variant="outline"
-                              className="bg-secondary/10 text-secondary hover:bg-secondary/20 border-secondary/20"
-                            >
-                              {useCase.solutionType}
-                            </Badge>
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {(useCase.industries || [useCase.industry]).map((industry, idx) => (
+                              <Badge
+                                key={`${useCase.id}-industry-${idx}`}
+                                variant="secondary"
+                                className="bg-primary/10 text-primary hover:bg-primary/20"
+                              >
+                                {industry}
+                              </Badge>
+                            ))}
+                            {(useCase.categories || [useCase.solutionType]).map((category, idx) => (
+                              <Badge
+                                key={`${useCase.id}-category-${idx}`}
+                                variant="outline"
+                                className="bg-secondary/10 text-secondary hover:bg-secondary/20 border-secondary/20"
+                              >
+                                {category}
+                              </Badge>
+                            ))}
                           </div>
                           <CardTitle className="text-xl">
                             {useCase.title}
