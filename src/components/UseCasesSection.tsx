@@ -85,11 +85,15 @@ const UseCasesSection = () => {
           description: useCase.description,
           image: useCase.imageUrl,
           industry: useCase.industry,
-          // Store all industries for display
-          industries: useCase.industries || [useCase.industry],
+          // Ensure industries is always an array
+          industries: Array.isArray(useCase.industries) && useCase.industries.length > 0 
+            ? useCase.industries 
+            : [useCase.industry],
           solutionType: useCase.category,
-          // Store all categories for display
-          categories: useCase.categories || [useCase.category],
+          // Ensure categories is always an array
+          categories: Array.isArray(useCase.categories) && useCase.categories.length > 0 
+            ? useCase.categories 
+            : [useCase.category],
           link: `/use-cases/${useCase.id}`,
         }));
 
