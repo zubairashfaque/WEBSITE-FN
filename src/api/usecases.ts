@@ -48,6 +48,7 @@ export const generateSlug = (title: string): string => {
 };
 
 // CRUD operations for use cases
+// Fixed version of getUseCases function in src/api/usecases.ts
 export const getUseCases = async (): Promise<UseCase[]> => {
   try {
     const delay = Math.random() * 500 + 200; // Simulate network delay
@@ -58,7 +59,20 @@ export const getUseCases = async (): Promise<UseCase[]> => {
       const useCases = JSON.parse(
         localStorage.getItem(USECASES_STORAGE_KEY) || "[]",
       ) as UseCase[];
-      return useCases;
+      
+      // Ensure all useCase objects have industries and categories as arrays
+      const normalizedUseCases = useCases.map(useCase => ({
+        ...useCase,
+        industries: Array.isArray(useCase.industries) && useCase.industries.length > 0 
+          ? useCase.industries 
+          : [useCase.industry],
+        categories: Array.isArray(useCase.categories) && useCase.categories.length > 0 
+          ? useCase.categories 
+          : [useCase.category]
+      }));
+      
+      console.log("Retrieved use cases from localStorage:", normalizedUseCases);
+      return normalizedUseCases;
     } else {
       // Use Supabase
       const { data, error } = await supabase
@@ -68,20 +82,58 @@ export const getUseCases = async (): Promise<UseCase[]> => {
 
       if (error) throw error;
 
-      return (data || []).map((useCase) => ({
-        id: useCase.id,
-        title: useCase.title,
-        description: useCase.description,
-        content: useCase.content,
-        industry: useCase.industry,
-        category: useCase.category,
-        industries: useCase.industry ? [useCase.industry] : [],
-        categories: useCase.category ? [useCase.category] : [],
-        imageUrl: useCase.image_url,
-        status: useCase.status,
-        createdAt: useCase.created_at,
-        updatedAt: useCase.updated_at,
-      }));
+      // Transform the data to ensure industries and categories are arrays
+      return (data || []).map((useCase) => {
+        // Parse industries and categories if they're stored as JSON strings
+        let industries = [];
+        let categories = [];
+        
+        try {
+          if (typeof useCase.industries === 'string') {
+            industries = JSON.parse(useCase.industries);
+          } else if (Array.isArray(useCase.industries)) {
+            industries = useCase.industries;
+          }
+        } catch (e) {
+          console.warn("Could not parse industries for useCase:", useCase.id);
+          industries = [];
+        }
+        
+        try {
+          if (typeof useCase.categories === 'string') {
+            categories = JSON.parse(useCase.categories);
+          } else if (Array.isArray(useCase.categories)) {
+            categories = useCase.categories;
+          }
+        } catch (e) {
+          console.warn("Could not parse categories for useCase:", useCase.id);
+          categories = [];
+        }
+        
+        // Ensure we always have at least one industry and category
+        if (industries.length === 0 && useCase.industry) {
+          industries = [useCase.industry];
+        }
+        
+        if (categories.length === 0 && useCase.category) {
+          categories = [useCase.category];
+        }
+
+        return {
+          id: useCase.id,
+          title: useCase.title,
+          description: useCase.description,
+          content: useCase.content,
+          industry: useCase.industry || (industries.length > 0 ? industries[0] : ''),
+          category: useCase.category || (categories.length > 0 ? categories[0] : ''),
+          industries,
+          categories,
+          imageUrl: useCase.image_url,
+          status: useCase.status,
+          createdAt: useCase.created_at,
+          updatedAt: useCase.updated_at,
+        };
+      });
     }
   } catch (error) {
     console.error("Error fetching use cases:", error);
@@ -132,6 +184,7 @@ export const getUseCaseById = async (id: string): Promise<UseCase | null> => {
   }
 };
 
+// Fixed version of createUseCase function in src/api/usecases.ts
 export const createUseCase = async (
   data: UseCaseFormData,
 ): Promise<UseCase> => {
@@ -166,7 +219,6 @@ export const createUseCase = async (
       "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&q=80";
 
     const now = new Date().toISOString();
-    const slug = generateSlug(data.title);
 
     if (useLocalStorageFallback()) {
       // Use localStorage
@@ -174,21 +226,31 @@ export const createUseCase = async (
         localStorage.getItem(USECASES_STORAGE_KEY) || "[]",
       ) as UseCase[];
 
+      // Ensure we store industries and categories as arrays
+      const industriesArray = Array.isArray(data.industries) 
+        ? data.industries 
+        : [data.industries].filter(Boolean);
+        
+      const categoriesArray = Array.isArray(data.categories) 
+        ? data.categories 
+        : [data.categories].filter(Boolean);
+
+      // Get primary industry and category (first one in each array)
+      const primaryIndustry = industriesArray.length > 0 ? industriesArray[0] : "";
+      const primaryCategory = categoriesArray.length > 0 ? categoriesArray[0] : "";
+        
+      console.log("Creating use case with industries:", industriesArray);
+      console.log("Creating use case with categories:", categoriesArray);
+
       const newUseCase: UseCase = {
         id: `usecase_${Date.now()}`,
         title: data.title,
         description: data.description,
         content: data.content,
-        industries: data.industries || [],
-        categories: data.categories || [],
-        industry:
-          data.industries && data.industries.length > 0
-            ? data.industries[0]
-            : "",
-        category:
-          data.categories && data.categories.length > 0
-            ? data.categories[0]
-            : "",
+        industries: industriesArray,
+        categories: categoriesArray,
+        industry: primaryIndustry,
+        category: primaryCategory,
         imageUrl,
         status: data.status as "draft" | "published",
         createdAt: now,
@@ -197,24 +259,33 @@ export const createUseCase = async (
 
       useCases.push(newUseCase);
       localStorage.setItem(USECASES_STORAGE_KEY, JSON.stringify(useCases));
-
+      
+      console.log("Created new use case:", newUseCase);
       return newUseCase;
     } else {
       // Use Supabase
+      // For Supabase, we might need to store arrays as JSON strings
+      const industriesJson = JSON.stringify(data.industries);
+      const categoriesJson = JSON.stringify(data.categories);
+      
+      // Get primary industry and category
+      const primaryIndustry = data.industries && data.industries.length > 0 
+        ? data.industries[0] 
+        : "";
+      const primaryCategory = data.categories && data.categories.length > 0 
+        ? data.categories[0] 
+        : "";
+
       const { data: useCaseData, error } = await supabase
         .from("usecases")
         .insert({
           title: data.title,
           description: data.description,
           content: data.content,
-          industry:
-            data.industries && data.industries.length > 0
-              ? data.industries[0]
-              : "",
-          category:
-            data.categories && data.categories.length > 0
-              ? data.categories[0]
-              : "",
+          industry: primaryIndustry,
+          category: primaryCategory,
+          industries: industriesJson, // Store as JSON string
+          categories: categoriesJson, // Store as JSON string
           image_url: imageUrl,
           status: data.status,
           created_at: now,
@@ -227,6 +298,10 @@ export const createUseCase = async (
         throw new Error(`Failed to create use case: ${error.message}`);
       }
 
+      // Parse the JSON strings back to arrays
+      const industriesArray = JSON.parse(useCaseData.industries || '[]');
+      const categoriesArray = JSON.parse(useCaseData.categories || '[]');
+
       return {
         id: useCaseData.id,
         title: useCaseData.title,
@@ -234,8 +309,8 @@ export const createUseCase = async (
         content: useCaseData.content,
         industry: useCaseData.industry,
         category: useCaseData.category,
-        industries: useCaseData.industry ? [useCaseData.industry] : [],
-        categories: useCaseData.category ? [useCaseData.category] : [],
+        industries: industriesArray,
+        categories: categoriesArray,
         imageUrl: useCaseData.image_url,
         status: useCaseData.status,
         createdAt: useCaseData.created_at,
