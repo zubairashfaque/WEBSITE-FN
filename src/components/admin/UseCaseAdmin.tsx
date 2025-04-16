@@ -63,19 +63,20 @@ const UseCaseAdmin = () => {
 
       // Filter by search term if provided
       const searchFilteredUseCases = searchTerm
-        ? filteredUseCases.filter(
-            (useCase) =>
-              useCase.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              useCase.description
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-              useCase.industry
-                .toLowerCase()
-                .includes(searchTerm.toLowerCase()) ||
-              useCase.category.toLowerCase().includes(searchTerm.toLowerCase()),
-          )
-        : filteredUseCases;
-
+          ? filteredUseCases.filter(
+              (useCase) =>
+                useCase.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                useCase.description
+                  .toLowerCase()
+                  .includes(searchTerm.toLowerCase()) ||
+                (useCase.industries || [useCase.industry]).some(industry => 
+                  industry.toLowerCase().includes(searchTerm.toLowerCase())
+                ) ||
+                (useCase.categories || [useCase.category]).some(category => 
+                  category.toLowerCase().includes(searchTerm.toLowerCase())
+                ),
+            )
+          : filteredUseCases;
       setUseCases(searchFilteredUseCases);
     } catch (error) {
       console.error("Error fetching use cases:", error);
@@ -284,15 +285,41 @@ const UseCaseAdmin = () => {
                     </Badge>
                   </td>
                   <td className="py-3 px-4">
-                    <Badge variant="outline" className="text-xs">
-                      {useCase.industry}
-                    </Badge>
-                  </td>
+                    <div className="flex flex-wrap gap-1">
+                        {useCase.industries && useCase.industries.length > 0 ? 
+                          useCase.industries.map((industry, idx) => (
+                            <Badge 
+                              key={`${useCase.id}-industry-${idx}`}
+                              variant="outline" 
+                              className="text-xs"
+                            >
+                              {industry}
+                            </Badge>
+                          )) : 
+                          <Badge variant="outline" className="text-xs">
+                            {useCase.industry}
+                          </Badge>
+                        }
+                      </div>
+                    </td>
                   <td className="py-3 px-4">
-                    <Badge variant="secondary" className="text-xs">
-                      {useCase.category}
-                    </Badge>
-                  </td>
+                    <div className="flex flex-wrap gap-1">
+                      {useCase.categories && useCase.categories.length > 0 ? 
+                        useCase.categories.map((category, idx) => (
+                          <Badge 
+                            key={`${useCase.id}-category-${idx}`}
+                            variant="secondary" 
+                            className="text-xs"
+                          >
+                            {category}
+                          </Badge>
+                        )) : 
+                        <Badge variant="secondary" className="text-xs">
+                          {useCase.category}
+                        </Badge>
+                      }
+                    </div>
+                  </td>                  
                   <td className="py-3 px-4 text-gray-500 text-sm">
                     {formatDate(useCase.createdAt)}
                   </td>
