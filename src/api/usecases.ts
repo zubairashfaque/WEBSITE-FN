@@ -355,170 +355,6 @@ export const createUseCase = async (
   }
 };
 
-// Updated updateUseCase function in src/api/usecases.ts
-export const updateUseCase = async (
-  id: string,
-  data: Partial<UseCaseFormData>,
-): Promise<UseCase> => {
-  try {
-    const delay = Math.random() * 800 + 400; // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, delay));
-
-    const now = new Date().toISOString();
-
-    if (useLocalStorageFallback()) {
-      // Use localStorage
-      const useCases = JSON.parse(
-        localStorage.getItem(USECASES_STORAGE_KEY) || "[]",
-      ) as UseCase[];
-      const useCaseIndex = useCases.findIndex((useCase) => useCase.id === id);
-
-      if (useCaseIndex === -1) {
-        throw new Error(`Use case with ID ${id} not found`);
-      }
-
-      const useCase = useCases[useCaseIndex];
-      
-      // Ensure we handle industries and categories as arrays
-      let industriesArray = useCase.industries;
-      if (data.industries !== undefined) {
-        industriesArray = Array.isArray(data.industries) 
-          ? data.industries 
-          : [data.industries].filter(Boolean);
-      }
-      
-      let categoriesArray = useCase.categories;
-      if (data.categories !== undefined) {
-        categoriesArray = Array.isArray(data.categories) 
-          ? data.categories 
-          : [data.categories].filter(Boolean);
-      }
-      
-      // Get primary values from arrays
-      const primaryIndustry = industriesArray.length > 0 ? industriesArray[0] : "";
-      const primaryCategory = categoriesArray.length > 0 ? categoriesArray[0] : "";
-      
-      const updatedUseCase: UseCase = {
-        ...useCase,
-        title: data.title !== undefined ? data.title : useCase.title,
-        description:
-          data.description !== undefined
-            ? data.description
-            : useCase.description,
-        content: data.content !== undefined ? data.content : useCase.content,
-        industries: industriesArray,
-        categories: categoriesArray,
-        industry: primaryIndustry,
-        category: primaryCategory,
-        imageUrl:
-          data.imageUrl !== undefined ? data.imageUrl : useCase.imageUrl,
-        status:
-          data.status !== undefined
-            ? (data.status as "draft" | "published")
-            : useCase.status,
-        updatedAt: now,
-      };
-
-      useCases[useCaseIndex] = updatedUseCase;
-      localStorage.setItem(USECASES_STORAGE_KEY, JSON.stringify(useCases));
-
-      return updatedUseCase;
-    } else {
-      // Use Supabase
-      const updateData: any = { updated_at: now };
-
-      if (data.title !== undefined) updateData.title = data.title;
-      if (data.description !== undefined)
-        updateData.description = data.description;
-      if (data.content !== undefined) updateData.content = data.content;
-      
-      // FIXED: Properly handle arrays in Supabase
-      if (data.industries !== undefined) {
-        // Ensure we have an array
-        const industriesArray = Array.isArray(data.industries) 
-          ? data.industries 
-          : [data.industries].filter(Boolean);
-          
-        // Convert to JSON string for storage
-        updateData.industries = JSON.stringify(industriesArray);
-        
-        // Also update the primary industry field
-        updateData.industry = industriesArray.length > 0 ? industriesArray[0] : "";
-      }
-      
-      if (data.categories !== undefined) {
-        // Ensure we have an array
-        const categoriesArray = Array.isArray(data.categories) 
-          ? data.categories 
-          : [data.categories].filter(Boolean);
-          
-        // Convert to JSON string for storage
-        updateData.categories = JSON.stringify(categoriesArray);
-        
-        // Also update the primary category field
-        updateData.category = categoriesArray.length > 0 ? categoriesArray[0] : "";
-      }
-      
-      if (data.imageUrl !== undefined) updateData.image_url = data.imageUrl;
-      if (data.status !== undefined) updateData.status = data.status;
-
-      const { data: useCaseData, error } = await supabase
-        .from("usecases")
-        .update(updateData)
-        .eq("id", id)
-        .select("*")
-        .single();
-
-      if (error) {
-        throw new Error(`Failed to update use case: ${error.message}`);
-      }
-
-      // Parse the JSON strings back to arrays
-      let industriesArray = [];
-      let categoriesArray = [];
-      
-      try {
-        industriesArray = useCaseData.industries 
-          ? JSON.parse(useCaseData.industries) 
-          : [useCaseData.industry].filter(Boolean);
-      } catch (e) {
-        console.warn("Could not parse industries, using fallback");
-        industriesArray = [useCaseData.industry].filter(Boolean);
-      }
-      
-      try {
-        categoriesArray = useCaseData.categories 
-          ? JSON.parse(useCaseData.categories) 
-          : [useCaseData.category].filter(Boolean);
-      } catch (e) {
-        console.warn("Could not parse categories, using fallback");
-        categoriesArray = [useCaseData.category].filter(Boolean);
-      }
-
-      return {
-        id: useCaseData.id,
-        title: useCaseData.title,
-        description: useCaseData.description,
-        content: useCaseData.content,
-        industry: useCaseData.industry,
-        category: useCaseData.category,
-        industries: industriesArray,
-        categories: categoriesArray,
-        imageUrl: useCaseData.image_url,
-        status: useCaseData.status,
-        createdAt: useCaseData.created_at,
-        updatedAt: useCaseData.updated_at,
-      };
-    }
-  } catch (error) {
-    console.error(`Error updating use case with ID ${id}:`, error);
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : `Failed to update use case with ID ${id}`,
-    );
-  }
-};
 
 // Updated getUseCases function in src/api/usecases.ts
 export const getUseCases = async (): Promise<UseCase[]> => {
@@ -688,6 +524,10 @@ export const getUseCaseById = async (id: string): Promise<UseCase | null> => {
   }
 };
 
+// Remove the second updateUseCase function from src/api/usecases.ts
+// Keep only the first implementation which correctly handles JSON arrays
+
+// The fixed updateUseCase function should look like this:
 export const updateUseCase = async (
   id: string,
   data: Partial<UseCaseFormData>,
@@ -710,6 +550,26 @@ export const updateUseCase = async (
       }
 
       const useCase = useCases[useCaseIndex];
+      
+      // Ensure we handle industries and categories as arrays
+      let industriesArray = useCase.industries;
+      if (data.industries !== undefined) {
+        industriesArray = Array.isArray(data.industries) 
+          ? data.industries 
+          : [data.industries].filter(Boolean);
+      }
+      
+      let categoriesArray = useCase.categories;
+      if (data.categories !== undefined) {
+        categoriesArray = Array.isArray(data.categories) 
+          ? data.categories 
+          : [data.categories].filter(Boolean);
+      }
+      
+      // Get primary values from arrays
+      const primaryIndustry = industriesArray.length > 0 ? industriesArray[0] : "";
+      const primaryCategory = categoriesArray.length > 0 ? categoriesArray[0] : "";
+      
       const updatedUseCase: UseCase = {
         ...useCase,
         title: data.title !== undefined ? data.title : useCase.title,
@@ -718,18 +578,10 @@ export const updateUseCase = async (
             ? data.description
             : useCase.description,
         content: data.content !== undefined ? data.content : useCase.content,
-        industries:
-          data.industries !== undefined ? data.industries : useCase.industries,
-        categories:
-          data.categories !== undefined ? data.categories : useCase.categories,
-        industry:
-          data.industries !== undefined && data.industries.length > 0
-            ? data.industries[0]
-            : useCase.industry,
-        category:
-          data.categories !== undefined && data.categories.length > 0
-            ? data.categories[0]
-            : useCase.category,
+        industries: industriesArray,
+        categories: categoriesArray,
+        industry: primaryIndustry,
+        category: primaryCategory,
         imageUrl:
           data.imageUrl !== undefined ? data.imageUrl : useCase.imageUrl,
         status:
@@ -751,14 +603,34 @@ export const updateUseCase = async (
       if (data.description !== undefined)
         updateData.description = data.description;
       if (data.content !== undefined) updateData.content = data.content;
+      
+      // FIXED: Properly handle arrays in Supabase
       if (data.industries !== undefined) {
-        updateData.industry =
-          data.industries.length > 0 ? data.industries[0] : "";
+        // Ensure we have an array
+        const industriesArray = Array.isArray(data.industries) 
+          ? data.industries 
+          : [data.industries].filter(Boolean);
+          
+        // Convert to JSON string for storage
+        updateData.industries = JSON.stringify(industriesArray);
+        
+        // Also update the primary industry field
+        updateData.industry = industriesArray.length > 0 ? industriesArray[0] : "";
       }
+      
       if (data.categories !== undefined) {
-        updateData.category =
-          data.categories.length > 0 ? data.categories[0] : "";
+        // Ensure we have an array
+        const categoriesArray = Array.isArray(data.categories) 
+          ? data.categories 
+          : [data.categories].filter(Boolean);
+          
+        // Convert to JSON string for storage
+        updateData.categories = JSON.stringify(categoriesArray);
+        
+        // Also update the primary category field
+        updateData.category = categoriesArray.length > 0 ? categoriesArray[0] : "";
       }
+      
       if (data.imageUrl !== undefined) updateData.image_url = data.imageUrl;
       if (data.status !== undefined) updateData.status = data.status;
 
@@ -770,7 +642,30 @@ export const updateUseCase = async (
         .single();
 
       if (error) {
+        console.error("Supabase update error:", error);
         throw new Error(`Failed to update use case: ${error.message}`);
+      }
+
+      // Parse the JSON strings back to arrays
+      let industriesArray = [];
+      let categoriesArray = [];
+      
+      try {
+        industriesArray = useCaseData.industries 
+          ? JSON.parse(useCaseData.industries) 
+          : [useCaseData.industry].filter(Boolean);
+      } catch (e) {
+        console.warn("Could not parse industries, using fallback");
+        industriesArray = [useCaseData.industry].filter(Boolean);
+      }
+      
+      try {
+        categoriesArray = useCaseData.categories 
+          ? JSON.parse(useCaseData.categories) 
+          : [useCaseData.category].filter(Boolean);
+      } catch (e) {
+        console.warn("Could not parse categories, using fallback");
+        categoriesArray = [useCaseData.category].filter(Boolean);
       }
 
       return {
@@ -780,8 +675,8 @@ export const updateUseCase = async (
         content: useCaseData.content,
         industry: useCaseData.industry,
         category: useCaseData.category,
-        industries: useCaseData.industry ? [useCaseData.industry] : [],
-        categories: useCaseData.category ? [useCaseData.category] : [],
+        industries: industriesArray,
+        categories: categoriesArray,
         imageUrl: useCaseData.image_url,
         status: useCaseData.status,
         createdAt: useCaseData.created_at,
@@ -795,39 +690,5 @@ export const updateUseCase = async (
         ? error.message
         : `Failed to update use case with ID ${id}`,
     );
-  }
-};
-
-export const deleteUseCase = async (id: string): Promise<void> => {
-  try {
-    const delay = Math.random() * 500 + 200; // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, delay));
-
-    if (useLocalStorageFallback()) {
-      // Use localStorage
-      const useCases = JSON.parse(
-        localStorage.getItem(USECASES_STORAGE_KEY) || "[]",
-      ) as UseCase[];
-      const updatedUseCases = useCases.filter((useCase) => useCase.id !== id);
-
-      if (useCases.length === updatedUseCases.length) {
-        throw new Error(`Use case with ID ${id} not found`);
-      }
-
-      localStorage.setItem(
-        USECASES_STORAGE_KEY,
-        JSON.stringify(updatedUseCases),
-      );
-    } else {
-      // Use Supabase
-      const { error } = await supabase.from("usecases").delete().eq("id", id);
-
-      if (error) {
-        throw new Error(`Failed to delete use case: ${error.message}`);
-      }
-    }
-  } catch (error) {
-    console.error(`Error deleting use case with ID ${id}:`, error);
-    throw new Error(`Failed to delete use case with ID ${id}`);
   }
 };
